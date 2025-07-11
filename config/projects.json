@@ -1,0 +1,89 @@
+{
+  "projects": [
+    {
+      "name": "Cellula",
+      "contract_address": {
+        "mainContract": "0xebaeA4c7D2301c3a5d308e92cd0Ad2d1E62AAEA0",
+        "energy": "0xebaeA4c7D2301c3a5d308e92cd0Ad2d1E62AAEA0",
+        "minner": "0x9a32008Ce38670618779C746eb955bb83259e0Cc",
+        "Bitlife": "0x59D93fD30382561FE0806Cf03C3191c22F27FA29",
+        "Bitcell": "0xa3E290AD53cA16d89d6cACdC4A22bC3C15Bd00F8",
+        "escelaToCela": "0x89231609608679d048Df195689c8dd5e8Eb35b11"
+      },
+      "logo": "https://hashkeyproject.4everland.store/cellula.webp",
+      "chain": "HashKey Chain",
+      "description": "Gamify Asset Issuance Using vPoW Mechanism"
+    },
+    {
+      "name": "DODO",
+      "contract_address": {
+        "MultiSigAddress": "0x562723560131C47417dfcD6BB1A089E4D7C7943C",
+        "DefaultMaintainer": "0x562723560131C47417dfcD6BB1A089E4D7C7943C",
+        "FeeReceiver": "0x1271CAba4bf23f8Fb31F97448605d65EE302CA51",
+        "DODOApprove": "0x2629E610dB4AC081c108cCDf8b19ED39D702df43",
+        "DODOApproveProxy": "0x6694eebf40924e04c952EA8F1626d19E7a656Bb7",
+        "DODOSellHelper": "0xa672BeB656f3cEAF33222bc4805aac71142344FD",
+        "DODOCalleeHelper": "0x94B66F3156353a12A6004d098A16F2fCfF9E8348",
+        "DODOV2RouteHelper": "0x928e9762B5223d5A2ac1F5b13E8A61907aCaa9Bd",
+        "ERC20Helper": "0x0c76F95a2952DC171B26b152f2b30cA8968e79D5",
+        "DODOV1PmmHelper": "0x187210CE04F5B3179F0e483FCf292c34BA7568Dd",
+        "MulticallWithValid": "0x388371233439cF57bB8C9f2e4835954841cfCb15",
+        "MultiCall": "0xEf1F9B93c4F4E31260b316DC5740adcE54209479",
+        "DODOSwapCalcHelper": "0x814473c0F2A32c57b98585157B78EA02A41f70Fb",
+        "DPPFactory": "0x8Ebbfe204E7EdA4be46b9d09c5dfa8b3e1500462",
+        "DSPFactory": "0x297A4885a7da4AaeF340FABEd119e7a6E3f2BCe8",
+        "CrowdPoolingFactory": "0x5e8807fd1C80F7A43362CeBEFcB2Becedfc731Dc",
+        "ERC20V3Factory": "0x3Cdf6B62D042179FAa21745b074a688BB4979FB7",
+        "DODOMineV2Factory": "0xC7EaBEc77Be175432DC20c0056Cce4c2C78B84F3",
+        "DODOMineV3Registry": "0xfcd8EF54A4dA96dE6B2DDF67C6265C7405a3A9c6",
+        "DVMFactory": "0x2235bB894b7600F1a370fc595Ee5477999A30441",
+        "DODOV2Adapter": "0xd0de7cA3298fff085E2cb82F8a861a0254256BA0",
+        "DODOFeeRouteProxy2": "0x79A273d00bBF7B73B92d6938b973f0197b734Acc",
+        "DODOFeeRouteProxy1": "0x7d6FF4f2bEdea9a757F1a5667b40Cb78c2be47Af",
+        "DODOCpProxy": "0x7386F6F2375a38FBD1F4dA1d3eb39cd8dD8d1b40",
+        "DODODspProxy": "0x38886EDE1Fc92886F9a11C37a1f5e75474858eaa",
+        "DODOMineV3Proxy": "0xE59d098c36916397Cc14AB42Bb0F00093BDA9f04",
+        "DODODppProxy": "0xcBF3378D432CB181aae32a6A80AA94CF8e00f534",
+        "DODOV2Proxy02": "0x1dFd36964e21a2eb633991f0B95b4241c20e1db3"
+      },
+      "logo": "https://hashkeyproject.4everland.store/dodo.jpg",
+      "chain": "HashKey Chain",
+      "description": "DODO is a decentralized exchange protocol"
+    },
+    {
+      "name": "AsteroidX",
+      "contract_address": {
+        "RewardAsteroidX": "0x53b18AD280947C58a9E4743e0Bfc7002EeD14257",
+        "AsteroidXRedpacket": "0xf296683d6Ac8e3A0A407C136A75D2AFe30CAfBaa",
+        "AsteroidX": "0xB7844BAf101995014a40600e40B5394A26401c6A",
+        "LaunchPadAsteroidX": "0xcA3Bd9808507c5852F6ce2bD9A3757413463cdBE"
+      },
+      "logo": "https://hashkeyproject.4everland.store/asteroidx.webp",
+      "chain": "HashKey Chain",
+      "description": "AsteroidX Project"
+    },
+    {
+      "name": "HyperIndex",
+      "contract_address": {
+        "factory": "0x09ee9eCc6E2B458508E05Da7f90E324AE54620D2",
+        "INIT_CODE_PAIR_HASH": "0xb4d4d093a282c5a30c7e0d37bec53ad1405404abac87cc046ceb2740307290e4",
+        "WHSK": "0xB210D2120d57b758EE163cFfb43e73728c471Cf1",
+        "router": "0x865E195B184fBf98c69752a280f2b3950AbD7756",
+        "multicall": "0x265dd248Ec6F16F79611076B01372cf7b3976578"
+      },
+      "logo": "https://hashkeyproject.4everland.store/index.jpg",
+      "chain": "HashKey Chain",
+      "description": "Index Protocol"
+    },
+    {
+      "name": "BountyBay",
+      "contract_address": {
+        "vault": "0x52BBA039148BA03cac62Ab77540B7dd167925116",
+        "incentiveToken": "0x6485e0EF23bf930fa8F232715Ae4d915750cF3F8"
+      },
+      "logo": "https://hashkeyproject.4everland.store/tradeos.jpg",
+      "chain": "HashKey Chain",
+      "description": "BountyBay Protocol"
+    }
+  ]
+} 
