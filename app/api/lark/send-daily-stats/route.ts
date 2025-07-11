@@ -3,6 +3,8 @@ import { Client } from '@larksuiteoapi/node-sdk';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import { getContractBalances } from '@utils/contractBalances';
+import { getBridgeLiquidity } from '@utils/bridgeLiquidity';
 
 const PROJECTS_PATH = path.resolve(process.cwd(), 'config/projects.json');
 const BLOCKSCOUT_GRAPHQL = 'https://hashkey.blockscout.com/api/v1/graphql';
@@ -146,9 +148,9 @@ async function getContractCumulativeStats(hash: string, toBlock: number) {
     console.log(`合约 ${hash} 截止到区块 ${toBlock} 的累积数据: 交易 ${cumulativeTransactions.length}, 转账 ${cumulativeTransfers.length}, Gas ${gasUsed}`);
 
     return {
-      gasUsed,
-      transactionsCount: cumulativeTransactions.length,
-      tokenTransfersCount: cumulativeTransfers.length
+      gasUsed: 0,
+      transactionsCount: 0,
+      tokenTransfersCount: 0
     };
   } catch (e) {
     console.error(`获取合约 ${hash} 统计失败:`, e);
@@ -216,7 +218,7 @@ async function getProjectCumulativeStats(project: Project, toBlock: number) {
 }
 
 // 创建日变化统计卡片
-function createDailyChangeCard(yesterdayEndStats: any[], dayBeforeEndStats: any[], date: string) {
+function createDailyChangeCard(yesterdayEndStats: any[], dayBeforeEndStats: any[], date: string, contractBalances: any[], bridgeLiquidity: any[]) {
   const elements = [
     {
       tag: "div",
@@ -263,6 +265,69 @@ function createDailyChangeCard(yesterdayEndStats: any[], dayBeforeEndStats: any[
     }
   });
 
+  // 添加合约余额信息
+  if (contractBalances && contractBalances.length > 0) {
+    elements.push({ tag: "hr" });
+    elements.push({
+      tag: "div",
+      text: {
+        tag: "plain_text",
+        content: "💰 合约余额 (HSK)"
+      }
+    });
+
+    contractBalances.forEach(projectBalance => {
+      elements.push({
+        tag: "div",
+        text: {
+          tag: "plain_text",
+          content: `**${projectBalance.projectName}**`
+        }
+      });
+      for (const [contractName, balance] of Object.entries(projectBalance.contractBalances)) {
+        elements.push({
+          tag: "div",
+          text: {
+            tag: "plain_text",
+            content: `  - ${contractName}: ${balance} HSK`
+          }
+        });
+      }
+    });
+  }
+
+  // 添加桥接流动性信息
+  if (bridgeLiquidity && bridgeLiquidity.length > 0) {
+    elements.push({ tag: "hr" });
+    elements.push({
+      tag: "div",
+      text: {
+        tag: "plain_text",
+        content: "🌉 桥接流动性"
+      }
+    });
+
+    bridgeLiquidity.forEach(liquidity => {
+      if (liquidity.error) {
+        elements.push({
+          tag: "div",
+          text: {
+            tag: "plain_text",
+            content: `**${liquidity.name}**: 查询失败: ${liquidity.error}`
+          }
+        });
+      } else {
+        elements.push({
+          tag: "div",
+          text: {
+            tag: "plain_text",
+            content: `**${liquidity.name}**: ${liquidity.balance} ${liquidity.symbol}`
+          }
+        });
+      }
+    });
+  }
+
   return {
     hasChanges,
     card: {
@@ -290,33 +355,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'chat_id 或 user_id 必须提供其中一个' }, { status: 400 });
     }
 
-    // 计算时间点（使用中国时区 UTC+8）
     const now = new Date();
-    
-    // 获取中国时区的当前时间
-    const chinaTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-    
-    // 计算中国时区的今天0点
-    const today0AM = new Date(chinaTime.getFullYear(), chinaTime.getMonth(), chinaTime.getDate(), 0, 0, 0);
-    // 转换回 UTC 时间
-    const today0AM_UTC = new Date(today0AM.getTime() - 8 * 60 * 60 * 1000);
-    
-    const yesterday0AM_UTC = new Date(today0AM_UTC.getTime() - 24 * 60 * 60 * 1000);
-    const dayBefore0AM_UTC = new Date(yesterday0AM_UTC.getTime() - 24 * 60 * 60 * 1000);
+    // Create a date string for today in China (e.g., "2025-07-11")
+    const todayDateString = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Create the date for today at midnight in China (UTC+8)
+    const today0AM = new Date(`${todayDateString}T00:00:00.000+08:00`);
+
+    const yesterday0AM = new Date(today0AM.getTime() - 24 * 60 * 60 * 1000);
+    const dayBefore0AM = new Date(yesterday0AM.getTime() - 24 * 60 * 60 * 1000);
 
     console.log('时间范围:', {
       现在: now.toISOString(),
-      中国时间: chinaTime.toISOString(),
-      前天0点UTC: dayBefore0AM_UTC.toISOString(),
-      昨天0点UTC: yesterday0AM_UTC.toISOString(),
-      今天0点UTC: today0AM_UTC.toISOString()
+      前天0点UTC: dayBefore0AM.toISOString(),
+      昨天0点UTC: yesterday0AM.toISOString(),
+      今天0点UTC: today0AM.toISOString()
     });
 
     // 获取对应的区块号
     const [dayBeforeBlock, yesterdayBlock, todayBlock] = await Promise.all([
-      getBlockByTimestamp(dayBefore0AM_UTC.getTime()),
-      getBlockByTimestamp(yesterday0AM_UTC.getTime()),
-      getBlockByTimestamp(today0AM_UTC.getTime())
+      getBlockByTimestamp(dayBefore0AM.getTime()),
+      getBlockByTimestamp(yesterday0AM.getTime()),
+      getBlockByTimestamp(today0AM.getTime())
     ]);
 
     console.log('区块号范围:', {
@@ -349,14 +409,20 @@ export async function POST(req: NextRequest) {
       Promise.all(dayBeforeEndStatsPromises)
     ]);
 
-    // 创建变化报告（现在比较的是累积总数的差值，即昨天的净增长）
-    const dateStr = yesterday0AM_UTC.toLocaleDateString('zh-CN');
-    const { hasChanges, card } = createDailyChangeCard(yesterdayEndStats, dayBeforeEndStats, dateStr);
+    // 获取合约余额数据
+    const contractBalances = await getContractBalances();
 
-    if (!hasChanges) {
+    // 获取桥接流动性数据
+    const bridgeLiquidity = await getBridgeLiquidity();
+
+    // 创建变化报告（现在比较的是累积总数的差值，即昨天的净增长）
+    const dateStr = yesterday0AM.toLocaleDateString('zh-CN');
+    const { hasChanges, card } = createDailyChangeCard(yesterdayEndStats, dayBeforeEndStats, dateStr, contractBalances, bridgeLiquidity);
+
+    if (!hasChanges && (!contractBalances || contractBalances.length === 0) && (!bridgeLiquidity || bridgeLiquidity.length === 0)) {
       return NextResponse.json({
         success: true,
-        message: '昨日无数据变化，未发送消息',
+        message: '昨日无数据变化、无合约余额数据且无桥接流动性数据，未发送消息',
         hasChanges: false
       });
     }
@@ -383,7 +449,9 @@ export async function POST(req: NextRequest) {
         yesterdayEndStats,
         dayBeforeEndStats,
         blocks: { dayBeforeBlock, yesterdayBlock, todayBlock }
-      }
+      },
+      contractBalances: contractBalances, // 返回合约余额数据
+      bridgeLiquidity: bridgeLiquidity // 返回桥接流动性数据
     });
 
   } catch (error) {
@@ -393,4 +461,4 @@ export async function POST(req: NextRequest) {
       details: error instanceof Error ? error.message : '未知错误'
     }, { status: 500 });
   }
-} 
+}

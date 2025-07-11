@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import { getContractBalances } from '@utils/contractBalances';
+import { getBridgeLiquidity } from '@utils/bridgeLiquidity';
 
 const PROJECTS_PATH = path.resolve(process.cwd(), 'config/projects.json');
 const BLOCKSCOUT_GRAPHQL = 'https://hashkey.blockscout.com/api/v1/graphql';
@@ -46,45 +48,84 @@ async function getBlockByTimestamp(timestamp: number): Promise<number> {
   return estimatedBlock;
 }
 
-// 获取合约的总统计数据（不考虑区块号）
-async function getContractTotalStats(hash: string) {
+// 获取某一页的交易数据
+async function fetchTransactionsPage(hash: string, startBlock: number, endBlock: number, after: string | null) {
   const query = {
-    query: `{
-      address(hash: "${hash}") {
-        gasUsed
-        transactionsCount
-        tokenTransfersCount
+    query: `query AddressStatsInBlockRange($hash: AddressHash!, $startBlock: Int!, $endBlock: Int!, $after: String) {
+      address(hash: $hash) {
+        transactions(
+          first: 100,
+          after: $after,
+          filter: {
+            blockNumber: {
+              gte: $startBlock,
+              lte: $endBlock
+            }
+          }
+        ) {
+          edges {
+            cursor
+            node {
+              gasUsed
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
       }
-    }`
+    }`,
+    variables: { hash, startBlock, endBlock, after }
   };
-  try {
-    const { data } = await axios.post(BLOCKSCOUT_GRAPHQL, query, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 10000
-    });
-    const addressData = (data as any).data?.address;
-    return {
-      gasUsed: addressData?.gasUsed || 0,
-      transactionsCount: addressData?.transactionsCount || 0,
-      tokenTransfersCount: addressData?.tokenTransfersCount || 0
-    };
-  } catch (e) {
-    return { gasUsed: 0, transactionsCount: 0, tokenTransfersCount: 0 };
-  }
+  const { data } = await axios.post(BLOCKSCOUT_GRAPHQL, query, {
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 10000
+  });
+  return (data as any).data?.address.transactions;
 }
 
-// 获取项目的总统计数据（不考虑区块号）
-async function getProjectTotalStats(project: Project) {
+// 获取合约在指定区块范围内的统计数据
+async function getContractDailyStats(hash: string, startBlock: number, endBlock: number) {
+  let allTransactions: any[] = [];
+  let hasNextPage = true;
+  let afterCursor = null;
+
+  while (hasNextPage) {
+    const transactionsData = await fetchTransactionsPage(hash, startBlock, endBlock, afterCursor);
+    if (transactionsData && transactionsData.edges) {
+      allTransactions = allTransactions.concat(transactionsData.edges);
+      hasNextPage = transactionsData.pageInfo.hasNextPage;
+      afterCursor = transactionsData.pageInfo.endCursor;
+    } else {
+      hasNextPage = false;
+    }
+  }
+
+  const stats = allTransactions.reduce((acc, edge) => {
+    acc.gasUsed += Number(edge.node.gasUsed);
+    return acc;
+  }, { gasUsed: 0 });
+
+  return {
+    gasUsed: stats.gasUsed,
+    transactionsCount: allTransactions.length,
+    tokenTransfersCount: 0 // The current query does not fetch token transfers
+  };
+}
+
+// 获取项目的统计数据
+async function getProjectStats(project: Project, startBlock: number, endBlock: number) {
   const addresses = project.contract_address;
   let totalGasUsed = 0;
   let totalTransactionsCount = 0;
   let totalTokenTransfersCount = 0;
 
-  const promises = Object.entries(addresses).map(async ([name, hash]) => {
-    return await getContractTotalStats(hash);
-  });
-
-  const results = await Promise.all(promises);
+  const results = [];
+  for (const [name, hash] of Object.entries(addresses)) {
+    const contractStats = await getContractDailyStats(hash, startBlock, endBlock);
+    results.push(contractStats);
+  }
   results.forEach(result => {
     totalGasUsed += Number(result.gasUsed);
     totalTransactionsCount += Number(result.transactionsCount);
@@ -99,22 +140,54 @@ async function getProjectTotalStats(project: Project) {
   };
 }
 
-// GET /api/debug/daily-data
+// GET /api/debug/daily-data 今天当天数据
+// GET /api/debug/daily-data?date=yesterday 昨天一整天数据
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const dateParam = searchParams.get('date');
+
+    const targetDate = new Date();
+    if (dateParam === 'yesterday') {
+      targetDate.setDate(targetDate.getDate() - 1);
+    }
+    targetDate.setHours(0, 0, 0, 0);
+    const startOfDayTimestamp = targetDate.getTime();
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    const endOfDayTimestamp = endOfDay.getTime();
+
+    const startBlock = await getBlockByTimestamp(startOfDayTimestamp);
+    const endBlock = await getBlockByTimestamp(endOfDayTimestamp);
+    console.log("startBlock, endBlock",startBlock, endBlock);
     const projects = getProjects();
-    const statsPromises = projects.map(project => getProjectTotalStats(project));
-    const stats = await Promise.all(statsPromises);
+
+    // 获取每日统计数据
+    const dailyStats: any[] = [];
+    for (const project of projects) {
+      const projectStats = await getProjectStats(project, startBlock, endBlock);
+      dailyStats.push(projectStats);
+    }
+
+    // 获取合约余额数据
+    const contractBalances = await getContractBalances();
+
+    // 获取桥接流动性数据
+    const bridgeLiquidity = await getBridgeLiquidity();
+    
     return NextResponse.json({
-      projects: stats,
+      dailyStats: dailyStats,
       summary: {
-        totalProjects: stats.length,
-        totalGasUsed: stats.reduce((sum, p) => sum + p.totalGasUsed, 0),
-        totalTransactionsCount: stats.reduce((sum, p) => sum + p.totalTransactionsCount, 0),
-        totalTokenTransfersCount: stats.reduce((sum, p) => sum + p.totalTokenTransfersCount, 0)
-      }
+        totalProjects: dailyStats.length,
+        totalGasUsed: dailyStats.reduce((sum, p) => sum + p.totalGasUsed, 0),
+        totalTransactionsCount: dailyStats.reduce((sum, p) => sum + p.totalTransactionsCount, 0),
+        totalTokenTransfersCount: dailyStats.reduce((sum, p) => sum + p.totalTokenTransfersCount, 0)
+      },
+      contractBalances: contractBalances, // 添加合约余额数据
+      bridgeLiquidity: bridgeLiquidity // 添加桥接流动性数据
     });
   } catch (error) {
     return NextResponse.json({ error: '统计失败', details: error instanceof Error ? error.message : '未知错误' }, { status: 500 });
   }
-} 
+}

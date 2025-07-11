@@ -19,23 +19,7 @@ async function getCurrentBlock(): Promise<number> {
 
 // 获取指定时间戳对应的区块号
 async function getBlockByTimestamp(timestamp: number): Promise<number> {
-  try {
-    // 先尝试通过 API 获取
-    const response = await axios.get(`${BLOCKSCOUT_API}/blocks`, {
-      params: {
-        timestamp: new Date(timestamp).toISOString(),
-        limit: 1
-      }
-    });
-    
-    if ((response.data as any).items && (response.data as any).items.length > 0) {
-      return parseInt((response.data as any).items[0].height);
-    }
-  } catch (e) {
-    console.log('API 获取区块号失败，使用估算方法');
-  }
-
-  // 如果 API 失败，使用估算方法
+  // API 查询似乎有问题，直接使用估算方法
   const currentTime = Date.now();
   const currentBlock = await getCurrentBlock();
   
@@ -60,7 +44,7 @@ async function testGraphQLQuery(hash: string, fromBlock?: number, toBlock?: numb
       name: "区块范围查询",
       query: `{
         address(hash: "${hash}") {
-          transactions(first: 100, fromBlock: ${fromBlock}, toBlock: ${toBlock}) {
+          transactions(first: 10) {
             edges {
               node {
                 gasUsed
@@ -81,7 +65,6 @@ async function testGraphQLQuery(hash: string, fromBlock?: number, toBlock?: numb
               node {
                 gasUsed
                 blockNumber
-                createdAt
               }
             }
           }
@@ -120,9 +103,13 @@ async function testGraphQLQuery(hash: string, fromBlock?: number, toBlock?: numb
 // GET /api/debug/blocks
 export async function GET(req: NextRequest) {
   try {
-    // 计算时间点
     const now = new Date();
-    const today0AM = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    // Create a date string for today in China (e.g., "2025-07-11")
+    const todayDateString = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Create the date for today at midnight in China (UTC+8)
+    const today0AM = new Date(`${todayDateString}T00:00:00.000+08:00`);
+
     const yesterday0AM = new Date(today0AM.getTime() - 24 * 60 * 60 * 1000);
     const dayBefore0AM = new Date(yesterday0AM.getTime() - 24 * 60 * 60 * 1000);
 

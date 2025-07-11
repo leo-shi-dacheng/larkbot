@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Orbiter Protocol (ETH Mainnet)",
+    "contract_address": {
+      "liquidityMonitor": "0x68b5a1c02dea0958388eee5361f021018bd8dbe7",
+      "hskToken": "0xe7c6bf469e97eeb0bfb74c8dbff5bd47d4c1c98a"
+    },
+    "logo": "https://example.com/orbiter.webp",
+    "chain": "Ethereum Mainnet",
+    "description": "Orbiter Protocol ETH Mainnet HSK Liquidity Monitoring"
+  }
+]
